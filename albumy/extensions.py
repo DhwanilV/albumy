@@ -14,6 +14,7 @@ from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 from flask_whooshee import Whooshee
 from flask_wtf import CSRFProtect
+from albumy.cv import CV
 
 bootstrap = Bootstrap()
 db = SQLAlchemy()
@@ -24,6 +25,7 @@ moment = Moment()
 whooshee = Whooshee()
 avatars = Avatars()
 csrf = CSRFProtect()
+cv = CV() #treating this file as a factory for objects(its sort of a factory)
 
 
 @login_manager.user_loader
