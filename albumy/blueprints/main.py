@@ -13,12 +13,11 @@ from flask_login import login_required, current_user
 from sqlalchemy.sql.expression import func
 
 from albumy.decorators import confirm_required, permission_required
-from albumy.extensions import db
+from albumy.extensions import db, cv
 from albumy.forms.main import DescriptionForm, TagForm, CommentForm
 from albumy.models import User, Photo, Tag, Follow, Collect, Comment, Notification
 from albumy.notifications import push_comment_notification, push_collect_notification
 from albumy.utils import rename_image, resize_image, redirect_back, flash_errors
-
 main_bp = Blueprint('main', __name__)
 
 
@@ -122,15 +121,27 @@ def upload():
     if request.method == 'POST' and 'file' in request.files:
         f = request.files.get('file')
         filename = rename_image(f.filename)
+        #Call the vision function here
         f.save(os.path.join(current_app.config['ALBUMY_UPLOAD_PATH'], filename))
+        description, tags = cv.analyze_image(os.path.join(current_app.config['ALBUMY_UPLOAD_PATH'], filename))
+
         filename_s = resize_image(f, filename, current_app.config['ALBUMY_PHOTO_SIZE']['small'])
         filename_m = resize_image(f, filename, current_app.config['ALBUMY_PHOTO_SIZE']['medium'])
         photo = Photo(
             filename=filename,
+            alt_text = description,
+            description=description,
             filename_s=filename_s,
             filename_m=filename_m,
             author=current_user._get_current_object()
         )
+        for tag in tags:
+            existinTag = Tag.query.filter_by(name=tag).first()
+            if existinTag is None:
+                tag = Tag(name=tag)
+                db.session.add(tag)
+                db.session.commit()
+            photo.tags.append(existinTag)
         db.session.add(photo)
         db.session.commit()
     return render_template('main/upload.html')
@@ -147,7 +158,7 @@ def show_photo(photo_id):
     comment_form = CommentForm()
     description_form = DescriptionForm()
     tag_form = TagForm()
-
+    print(description_form)
     description_form.description.data = photo.description
     return render_template('main/photo.html', photo=photo, comment_form=comment_form,
                            description_form=description_form, tag_form=tag_form,
